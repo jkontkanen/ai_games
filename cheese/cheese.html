@@ -124,63 +124,28 @@
 
     <script>
         // --- PWA Setup ---
-        // Dynamically create and link the manifest
         const manifest = {
-            "name": "Cheese Pursuit",
-            "short_name": "Cheese Pursuit",
-            "start_url": ".",
-            "display": "standalone",
-            "background_color": "#1f2937",
-            "theme_color": "#1f2937",
+            "name": "Cheese Pursuit", "short_name": "Cheese Pursuit", "start_url": ".",
+            "display": "standalone", "background_color": "#1f2937", "theme_color": "#1f2937",
             "description": "A fun cat and mouse game where you pursue cheese and avoid cats!",
-            "icons": [{
-                "src": "https://placehold.co/192x192/facc15/1f2937?text=CP",
-                "sizes": "192x192",
-                "type": "image/png"
-            }, {
-                "src": "https://placehold.co/512x512/facc15/1f2937?text=CP",
-                "sizes": "512x512",
-                "type": "image/png"
-            }]
+            "icons": [{"src": "https://placehold.co/192x192/facc15/1f2937?text=CP", "sizes": "192x192", "type": "image/png"},
+                      {"src": "https://placehold.co/512x512/facc15/1f2937?text=CP", "sizes": "512x512", "type": "image/png"}]
         };
         const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
         const manifestURL = URL.createObjectURL(manifestBlob);
         document.querySelector('#manifest').setAttribute('href', manifestURL);
 
-        // Register the service worker for offline capabilities
         if ('serviceWorker' in navigator) {
             const swContent = `
                 const CACHE_NAME = 'cheese-pursuit-v1';
-                const assetsToCache = [
-                    '/',
-                    'https://cdn.tailwindcss.com',
-                    'https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js',
-                    'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap'
-                ];
-
-                self.addEventListener('install', event => {
-                    event.waitUntil(
-                        caches.open(CACHE_NAME).then(cache => {
-                            return cache.addAll(assetsToCache);
-                        })
-                    );
-                });
-
-                self.addEventListener('fetch', event => {
-                    event.respondWith(
-                        caches.match(event.request).then(response => {
-                            return response || fetch(event.request);
-                        })
-                    );
-                });
+                const assetsToCache = ['/', 'https://cdn.tailwindcss.com', 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap'];
+                self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(assetsToCache))));
+                self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
             `;
             const swBlob = new Blob([swContent], {type: 'application/javascript'});
             const swURL = URL.createObjectURL(swBlob);
-            navigator.serviceWorker.register(swURL)
-                .then(() => console.log('Service Worker registered successfully.'))
-                .catch(error => console.log('Service Worker registration failed:', error));
+            navigator.serviceWorker.register(swURL).catch(err => console.log('SW registration failed:', err));
         }
-
 
         document.addEventListener('DOMContentLoaded', () => {
             // DOM Elements
@@ -192,28 +157,20 @@
             const cheese = document.getElementById('cheese');
             const scoreDisplay = document.getElementById('score');
             const messageBox = document.getElementById('message-box');
-            const messageTitle = document.getElementById('message-title');
-            const messageText = document.getElementById('message-text');
             const restartBtn = document.getElementById('restart-btn');
 
             // Game State
-            let score = 0;
-            let mouseX, mouseY;
-            let cats = [];
-            let gameOver = false;
-            let animationFrameId;
-            let audioStarted = false;
+            let score = 0, mouseX, mouseY, cats = [], gameOver = false, animationFrameId, audioStarted = false;
+            let lastTime = 0;
 
-            // Game Parameters
-            const mouseSpeed = 3; 
-            const catSpeed = 0.7;
-            let objectSize; // Will be calculated dynamically
+            // Game Parameters (pixels per second)
+            const mouseSpeed = 180; 
+            const catSpeed = 45;
+            let objectSize;
             const wallCollisionPadding = 5;
 
             // Input state tracker
-            const keysPressed = {
-                ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
-            };
+            const keysPressed = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 
             // Wall Definitions
             const wallDefinitions = [
@@ -226,40 +183,19 @@
             // --- Sound Effects ---
             const synth = new Tone.Synth().toDestination();
             const noise = new Tone.NoiseSynth().toDestination();
-
-            function playMeow() {
-                if (!audioStarted) return;
-                synth.triggerAttackRelease("A4", "8n", Tone.now());
-                synth.triggerAttackRelease("C5", "8n", Tone.now() + 0.1);
-            }
-
-            function playRoar() {
-                if (!audioStarted) return;
-                synth.triggerAttackRelease("G2", "4n");
-            }
-
-            function playSqueak() {
-                if (!audioStarted) return;
-                noise.triggerAttackRelease("8n");
-            }
-
-            function startAudioContext() {
-                if (!audioStarted && Tone.context.state !== 'running') {
-                    Tone.start();
-                    audioStarted = true;
-                }
-            }
+            function playMeow() { if (audioStarted) { synth.triggerAttackRelease("A4", "8n", Tone.now()); synth.triggerAttackRelease("C5", "8n", Tone.now() + 0.1); } }
+            function playRoar() { if (audioStarted) synth.triggerAttackRelease("G2", "4n"); }
+            function playSqueak() { if (audioStarted) noise.triggerAttackRelease("8n"); }
+            function startAudioContext() { if (!audioStarted && Tone.context.state !== 'running') { Tone.start(); audioStarted = true; } }
             
             // --- Game Setup ---
             function initializeGame() {
-                // Calculate and set dynamic sizes for game objects
                 objectSize = Math.min(gameArea.offsetWidth, gameArea.offsetHeight) * 0.06;
-                document.querySelectorAll('.game-object').forEach(el => {
-                    el.style.fontSize = `${objectSize}px`;
-                });
+                document.querySelectorAll('.game-object').forEach(el => el.style.fontSize = `${objectSize}px`);
 
                 gameOver = false;
                 score = 0;
+                lastTime = 0; // Reset time for delta time calculation
                 
                 messageBox.classList.add('hidden');
                 
@@ -275,11 +211,10 @@
 
                 addCat(); 
                 updateScore();
-
                 placeCheeseRandomly();
                 
                 if (animationFrameId) cancelAnimationFrame(animationFrameId);
-                gameLoop();
+                animationFrameId = requestAnimationFrame(gameLoop);
             }
 
             // --- Cat Management ---
@@ -288,42 +223,27 @@
                 const catEl = document.createElement('div');
                 catEl.classList.add('game-object', 'cat');
                 catEl.textContent = '🐱';
-                // Apply dynamic font size to new cats
                 catEl.style.fontSize = `${objectSize}px`;
                 gameArea.appendChild(catEl);
 
                 const corners = [
-                    { x: objectSize, y: objectSize },
-                    { x: gameArea.offsetWidth - objectSize, y: objectSize },
-                    { x: objectSize, y: gameArea.offsetHeight - objectSize },
-                    { x: gameArea.offsetWidth - objectSize, y: gameArea.offsetHeight - objectSize }
+                    { x: objectSize, y: objectSize }, { x: gameArea.offsetWidth - objectSize, y: objectSize },
+                    { x: objectSize, y: gameArea.offsetHeight - objectSize }, { x: gameArea.offsetWidth - objectSize, y: gameArea.offsetHeight - objectSize }
                 ];
-
-                let bestCorner = null;
-                let maxDistance = -1;
-
+                let bestCorner = null, maxDistance = -1;
                 corners.forEach(corner => {
-                    const dx = corner.x - mouseX;
-                    const dy = corner.y - mouseY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance > maxDistance) {
-                        maxDistance = distance;
-                        bestCorner = corner;
-                    }
+                    const dist = Math.hypot(corner.x - mouseX, corner.y - mouseY);
+                    if (dist > maxDistance) { maxDistance = dist; bestCorner = corner; }
                 });
 
-                const newCat = {
-                    x: bestCorner.x, y: bestCorner.y, el: catEl,
-                    isSuper: false, speed: catSpeed,
-                };
+                const newCat = { x: bestCorner.x, y: bestCorner.y, el: catEl, isSuper: false, speed: catSpeed };
                 cats.push(newCat);
                 updateCatPosition(newCat);
             }
 
             // --- Wall Creation ---
             function createWalls() {
-                const gameWidth = gameArea.offsetWidth;
-                const gameHeight = gameArea.offsetHeight;
+                const gameWidth = gameArea.offsetWidth, gameHeight = gameArea.offsetHeight;
                 wallDefinitions.forEach(def => {
                     const wallEl = document.createElement('div');
                     wallEl.classList.add('wall');
@@ -337,35 +257,20 @@
             }
             
             // --- Core Functions ---
-            function updateMousePosition() {
-                mouse.style.left = `${mouseX - objectSize / 2}px`;
-                mouse.style.top = `${mouseY - objectSize / 2}px`;
-            }
-            
-            function updateCatPosition(cat) {
-                cat.el.style.left = `${cat.x - objectSize / 2}px`;
-                cat.el.style.top = `${cat.y - objectSize / 2}px`;
-            }
-
+            function updateMousePosition() { mouse.style.left = `${mouseX - objectSize / 2}px`; mouse.style.top = `${mouseY - objectSize / 2}px`; }
+            function updateCatPosition(cat) { cat.el.style.left = `${cat.x - objectSize / 2}px`; cat.el.style.top = `${cat.y - objectSize / 2}px`; }
             function updateScore() {
                 scoreDisplay.textContent = `Score: ${score}`;
-                const expectedCats = Math.floor(score / 10) + 1;
-                if (cats.length < expectedCats) {
-                    addCat();
-                }
+                if (cats.length < Math.floor(score / 10) + 1) addCat();
             }
 
             function placeCheeseRandomly() {
                 let randomX, randomY, validPosition;
-                const maxX = gameArea.offsetWidth - objectSize;
-                const maxY = gameArea.offsetHeight - objectSize;
+                const maxX = gameArea.offsetWidth - objectSize, maxY = gameArea.offsetHeight - objectSize;
                 do {
-                    randomX = Math.floor(Math.random() * maxX) + objectSize / 2;
-                    randomY = Math.floor(Math.random() * maxY) + objectSize / 2;
-                    const cheeseRect = { 
-                        left: randomX - objectSize / 2, top: randomY - objectSize / 2, 
-                        right: randomX + objectSize / 2, bottom: randomY + objectSize / 2 
-                    };
+                    randomX = Math.random() * maxX + objectSize / 2;
+                    randomY = Math.random() * maxY + objectSize / 2;
+                    const cheeseRect = { left: randomX - objectSize / 2, top: randomY - objectSize / 2, right: randomX + objectSize / 2, bottom: randomY + objectSize / 2 };
                     validPosition = !isCollidingWithWall(cheeseRect);
                 } while (!validPosition);
                 cheese.style.left = `${randomX - objectSize / 2}px`;
@@ -373,101 +278,54 @@
             }
             
             // --- Collision Detection ---
-            function isColliding(rect1, rect2) {
-                return (
-                    rect1.left < rect2.right && rect1.right > rect2.left &&
-                    rect1.top < rect2.bottom && rect1.bottom > rect2.top
-                );
-            }
-
+            function isColliding(r1, r2) { return !(r2.left > r1.right || r2.right < r1.left || r2.top > r1.bottom || r2.bottom < r1.top); }
             function isCollidingWithWall(rect) {
-                const smallerRect = {
-                    left: rect.left + wallCollisionPadding, right: rect.right - wallCollisionPadding,
-                    top: rect.top + wallCollisionPadding, bottom: rect.bottom - wallCollisionPadding,
-                };
+                const smallerRect = { left: rect.left + wallCollisionPadding, right: rect.right - wallCollisionPadding, top: rect.top + wallCollisionPadding, bottom: rect.bottom - wallCollisionPadding };
                 for (const wall of walls) {
-                    const wallRect = wall.el.getBoundingClientRect();
-                    const gameRect = gameArea.getBoundingClientRect();
-                    const relativeWallRect = {
-                        left: wallRect.left - gameRect.left, right: wallRect.right - gameRect.left,
-                        top: wallRect.top - gameRect.top, bottom: wallRect.bottom - gameRect.top,
-                    };
-                    if (isColliding(smallerRect, relativeWallRect)) return true;
+                    const wallRect = wall.el.getBoundingClientRect(), gameRect = gameArea.getBoundingClientRect();
+                    const relWallRect = { left: wallRect.left - gameRect.left, right: wallRect.right - gameRect.left, top: wallRect.top - gameRect.top, bottom: wallRect.bottom - gameRect.top };
+                    if (isColliding(smallerRect, relWallRect)) return true;
                 }
                 return false;
             }
-
-            function checkCheeseCollision() {
-                if (isColliding(mouse.getBoundingClientRect(), cheese.getBoundingClientRect())) {
-                    score++;
-                    updateScore();
-                    placeCheeseRandomly();
-                }
-            }
-            
+            function checkCheeseCollision() { if (isColliding(mouse.getBoundingClientRect(), cheese.getBoundingClientRect())) { score++; updateScore(); placeCheeseRandomly(); } }
             function checkCatCollision() {
-                const mouseRect = mouse.getBoundingClientRect();
-                const collisionPadding = objectSize * 0.25; // Make padding relative to size
-                const smallerMouseRect = {
-                    left: mouseRect.left + collisionPadding, right: mouseRect.right - collisionPadding,
-                    top: mouseRect.top + collisionPadding, bottom: mouseRect.bottom - collisionPadding
-                };
+                const mouseRect = mouse.getBoundingClientRect(), padding = objectSize * 0.25;
+                const smallerMouseRect = { left: mouseRect.left + padding, right: mouseRect.right - padding, top: mouseRect.top + padding, bottom: mouseRect.bottom - padding };
                 for (const cat of cats) {
                     const catRect = cat.el.getBoundingClientRect();
-                    const smallerCatRect = {
-                        left: catRect.left + collisionPadding, right: catRect.right - collisionPadding,
-                        top: catRect.top + collisionPadding, bottom: catRect.bottom - collisionPadding
-                    };
-                    if (isColliding(smallerMouseRect, smallerCatRect)) {
-                        endGame(cat.isSuper);
-                        return;
-                    }
+                    const smallerCatRect = { left: catRect.left + padding, right: catRect.right - padding, top: catRect.top + padding, bottom: catRect.bottom - padding };
+                    if (isColliding(smallerMouseRect, smallerCatRect)) { endGame(cat.isSuper); return; }
                 }
             }
 
             // --- Game Logic ---
-            function handlePlayerInput() {
+            function handlePlayerInput(deltaTime) {
                 if (gameOver) return;
                 let dx = 0, dy = 0;
-                if (keysPressed.ArrowUp) dy = -1;
-                if (keysPressed.ArrowDown) dy = 1;
-                if (keysPressed.ArrowLeft) dx = -1;
-                if (keysPressed.ArrowRight) dx = 1;
+                if (keysPressed.ArrowUp) dy = -1; if (keysPressed.ArrowDown) dy = 1;
+                if (keysPressed.ArrowLeft) dx = -1; if (keysPressed.ArrowRight) dx = 1;
                 if (dx === 0 && dy === 0) return;
 
-                let nextX = mouseX + dx * mouseSpeed;
-                let nextY = mouseY + dy * mouseSpeed;
+                let nextX = mouseX + dx * mouseSpeed * deltaTime;
+                let nextY = mouseY + dy * mouseSpeed * deltaTime;
                 nextX = Math.max(objectSize / 2, Math.min(nextX, gameArea.offsetWidth - objectSize / 2));
                 nextY = Math.max(objectSize / 2, Math.min(nextY, gameArea.offsetHeight - objectSize / 2));
-                const nextRect = {
-                    left: nextX - objectSize / 2, top: nextY - objectSize / 2,
-                    right: nextX + objectSize / 2, bottom: nextY + objectSize / 2
-                };
-                if (!isCollidingWithWall(nextRect)) {
-                    mouseX = nextX;
-                    mouseY = nextY;
-                }
+                const nextRect = { left: nextX - objectSize / 2, top: nextY - objectSize / 2, right: nextX + objectSize / 2, bottom: nextY + objectSize / 2 };
+                if (!isCollidingWithWall(nextRect)) { mouseX = nextX; mouseY = nextY; }
                 updateMousePosition();
             }
 
-            function moveCats() {
+            function moveCats(deltaTime) {
                 if (gameOver) return;
                 cats.forEach(cat => {
-                    const dx = mouseX - cat.x;
-                    const dy = mouseY - cat.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance > 1) {
-                        let nextX = cat.x + (dx / distance) * cat.speed;
-                        let nextY = cat.y + (dy / distance) * cat.speed;
-                        const nextRect = {
-                            left: nextX - objectSize / 2, top: nextY - objectSize / 2,
-                            right: nextX + objectSize / 2, bottom: nextY + objectSize / 2
-                        };
-                        if (!isCollidingWithWall(nextRect)) {
-                            cat.x = nextX;
-                            cat.y = nextY;
-                            updateCatPosition(cat);
-                        }
+                    const dist = Math.hypot(mouseX - cat.x, mouseY - cat.y);
+                    if (dist > 1) {
+                        const dx = (mouseX - cat.x) / dist, dy = (mouseY - cat.y) / dist;
+                        let nextX = cat.x + dx * cat.speed * deltaTime;
+                        let nextY = cat.y + dy * cat.speed * deltaTime;
+                        const nextRect = { left: nextX - objectSize / 2, top: nextY - objectSize / 2, right: nextX + objectSize / 2, bottom: nextY + objectSize / 2 };
+                        if (!isCollidingWithWall(nextRect)) { cat.x = nextX; cat.y = nextY; updateCatPosition(cat); }
                     }
                 });
             }
@@ -476,23 +334,12 @@
                 if (gameOver) return;
                 for (let i = 0; i < cats.length; i++) {
                     for (let j = i + 1; j < cats.length; j++) {
-                        const cat1 = cats[i];
-                        const cat2 = cats[j];
-                        
-                        if (cat1.isSuper || cat2.isSuper) continue;
-
-                        const rect1 = cat1.el.getBoundingClientRect();
-                        const rect2 = cat2.el.getBoundingClientRect();
-
-                        if (isColliding(rect1, rect2)) {
+                        const c1 = cats[i], c2 = cats[j];
+                        if (c1.isSuper || c2.isSuper) continue;
+                        if (isColliding(c1.el.getBoundingClientRect(), c2.el.getBoundingClientRect())) {
                             playRoar();
-                            cat1.isSuper = true;
-                            cat1.speed = catSpeed * 2;
-                            cat1.el.textContent = '🐯';
-
-                            cat2.el.remove();
-                            cats.splice(j, 1);
-                            j--;
+                            c1.isSuper = true; c1.speed = catSpeed * 2; c1.el.textContent = '🐯';
+                            c2.el.remove(); cats.splice(j, 1); j--;
                         }
                     }
                 }
@@ -502,16 +349,22 @@
                 playSqueak();
                 gameOver = true;
                 cancelAnimationFrame(animationFrameId);
+                const messageTitle = document.getElementById('message-title');
+                const messageText = document.getElementById('message-text');
                 messageTitle.textContent = "Game Over!";
                 const predator = caughtBySuperCat ? "supercat" : "cat";
                 messageText.textContent = `The ${predator} caught you! Your final score is ${score}.`;
                 messageBox.classList.remove('hidden');
             }
 
-            function gameLoop() {
+            function gameLoop(currentTime) {
                 if (gameOver) return;
-                handlePlayerInput();
-                moveCats();
+                if (!lastTime) lastTime = currentTime;
+                const deltaTime = (currentTime - lastTime) / 1000; // Time in seconds
+                lastTime = currentTime;
+
+                handlePlayerInput(deltaTime);
+                moveCats(deltaTime);
                 fuseCats();
                 checkCheeseCollision();
                 checkCatCollision();
@@ -525,21 +378,14 @@
                 startAudioContext();
                 initializeGame();
             });
-
-            document.addEventListener('keydown', (e) => {
-                if (keysPressed.hasOwnProperty(e.key)) { e.preventDefault(); keysPressed[e.key] = true; }
-            });
-            document.addEventListener('keyup', (e) => {
-                if (keysPressed.hasOwnProperty(e.key)) { e.preventDefault(); keysPressed[e.key] = false; }
-            });
+            document.addEventListener('keydown', e => { if (keysPressed.hasOwnProperty(e.key)) { e.preventDefault(); keysPressed[e.key] = true; } });
+            document.addEventListener('keyup', e => { if (keysPressed.hasOwnProperty(e.key)) { e.preventDefault(); keysPressed[e.key] = false; } });
             const touchMap = { 'up': 'ArrowUp', 'down': 'ArrowDown', 'left': 'ArrowLeft', 'right': 'ArrowRight' };
             Object.entries(touchMap).forEach(([id, key]) => {
-                const button = document.getElementById(id);
-                const press = (e) => { e.preventDefault(); keysPressed[key] = true; };
-                const release = (e) => { e.preventDefault(); keysPressed[key] = false; };
-                button.addEventListener('touchstart', press);
-                button.addEventListener('touchend', release);
-                button.addEventListener('touchcancel', release);
+                const btn = document.getElementById(id);
+                btn.addEventListener('touchstart', e => { e.preventDefault(); keysPressed[key] = true; });
+                btn.addEventListener('touchend', e => { e.preventDefault(); keysPressed[key] = false; });
+                btn.addEventListener('touchcancel', e => { e.preventDefault(); keysPressed[key] = false; });
             });
             restartBtn.addEventListener('click', initializeGame);
             window.addEventListener('resize', initializeGame);
