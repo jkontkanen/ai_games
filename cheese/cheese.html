@@ -53,24 +53,31 @@
             box-shadow: 4px 4px 6px rgba(0, 0, 0, 0.2);
         }
         #touch-controls {
-            position: relative;
-            width: 180px;
-            height: 180px;
-            cursor: pointer;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 0.5rem;
+            width: 180px; /* Increased size */
+            height: 180px; /* Increased size */
         }
         .touch-btn {
-            position: absolute;
-            fill: #4b5563; /* bg-gray-700 */
-            transition: fill 0.1s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #4b5563; /* bg-gray-700 */
+            color: white;
+            border-radius: 9999px; /* rounded-full */
+            font-size: 2rem; /* Increased arrow size */
+            cursor: pointer;
+            user-select: none;
         }
         .touch-btn.active {
-            fill: #374151; /* bg-gray-800 */
+            background-color: #374151; /* bg-gray-800 */
         }
-        .touch-arrow {
-            fill: white;
-            pointer-events: none; /* Make arrows transparent to touch events */
-        }
-
+        #up { grid-column: 2; grid-row: 1; }
+        #left { grid-column: 1; grid-row: 2; }
+        #right { grid-column: 3; grid-row: 2; }
+        #down { grid-column: 2; grid-row: 3; }
     </style>
 </head>
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen p-4 pb-24 md:pb-4 text-white">
@@ -99,19 +106,10 @@
         
         <!-- On-screen controls for touch devices -->
         <div id="touch-controls" class="mt-6 md:hidden">
-            <svg viewBox="0 0 200 200">
-                <!-- Corrected SVG Paths -->
-                <path id="up" class="touch-btn" d="M 100,100 L 29.29,29.29 A 100,100 0 0 1 170.71,29.29 Z"></path>
-                <path id="right" class="touch-btn" d="M 100,100 L 170.71,29.29 A 100,100 0 0 1 170.71,170.71 Z"></path>
-                <path id="down" class="touch-btn" d="M 100,100 L 170.71,170.71 A 100,100 0 0 1 29.29,170.71 Z"></path>
-                <path id="left" class="touch-btn" d="M 100,100 L 29.29,170.71 A 100,100 0 0 1 29.29,29.29 Z"></path>
-                
-                <!-- Arrows -->
-                <polygon class="touch-arrow" points="100,20 120,45 80,45" />
-                <polygon class="touch-arrow" points="180,100 155,120 155,80" />
-                <polygon class="touch-arrow" points="100,180 120,155 80,155" />
-                <polygon class="touch-arrow" points="20,100 45,120 45,80" />
-            </svg>
+            <div id="up" class="touch-btn">▲</div>
+            <div id="left" class="touch-btn">◀</div>
+            <div id="right" class="touch-btn">▶</div>
+            <div id="down" class="touch-btn">▼</div>
         </div>
     </div>
 
@@ -393,11 +391,8 @@
                 right: document.getElementById('right'),
             };
 
-            function updatePressedButtons(clientX, clientY) {
-                // Reset all keys
-                Object.keys(keysPressed).forEach(key => keysPressed[key] = false);
-                Object.values(buttons).forEach(btn => btn.classList.remove('active'));
-
+            // This function is now only responsible for adding a pressed state, not resetting.
+            function updateSingleButton(clientX, clientY) {
                 const element = document.elementFromPoint(clientX, clientY);
                 if (element && element.classList.contains('touch-btn')) {
                     element.classList.add('active');
@@ -410,48 +405,48 @@
                 }
             }
 
-            function handleTouch(event) {
+            function handleInput(event, isMouseEvent = false) {
                 event.preventDefault();
                 startAudioContext();
-                if (event.touches.length > 0) {
-                    const touch = event.touches[0];
-                    updatePressedButtons(touch.clientX, touch.clientY);
-                } else {
-                    // Reset on touchend
-                    Object.keys(keysPressed).forEach(key => keysPressed[key] = false);
-                    Object.values(buttons).forEach(btn => btn.classList.remove('active'));
+
+                // Reset keys and active states before processing new input
+                Object.keys(keysPressed).forEach(key => keysPressed[key] = false);
+                Object.values(buttons).forEach(btn => btn.classList.remove('active'));
+
+                if (isMouseEvent) {
+                    if (isMouseDown) {
+                         updateSingleButton(event.clientX, event.clientY);
+                    }
+                } else { // Touch Event
+                    if (event.touches.length > 0) {
+                        for (let i = 0; i < event.touches.length; i++) {
+                            const touch = event.touches[i];
+                            updateSingleButton(touch.clientX, touch.clientY);
+                        }
+                    }
                 }
             }
             
-            touchControls.addEventListener('touchstart', handleTouch);
-            touchControls.addEventListener('touchmove', handleTouch);
-            touchControls.addEventListener('touchend', handleTouch);
-            touchControls.addEventListener('touchcancel', handleTouch);
+            // Touch Listeners
+            touchControls.addEventListener('touchstart', e => handleInput(e));
+            touchControls.addEventListener('touchmove', e => handleInput(e));
+            touchControls.addEventListener('touchend', e => handleInput(e));
+            touchControls.addEventListener('touchcancel', e => handleInput(e));
 
             // Mouse Listeners
             touchControls.addEventListener('mousedown', e => {
                 isMouseDown = true;
-                startAudioContext();
-                updatePressedButtons(e.clientX, e.clientY);
+                handleInput(e, true);
             });
             touchControls.addEventListener('mousemove', e => {
                 if (isMouseDown) {
-                    updatePressedButtons(e.clientX, e.clientY);
+                    handleInput(e, true);
                 }
             });
-            touchControls.addEventListener('mouseup', () => {
+            document.addEventListener('mouseup', () => {
                 isMouseDown = false;
-                Object.keys(keysPressed).forEach(key => keysPressed[key] = false);
-                Object.values(buttons).forEach(btn => btn.classList.remove('active'));
+                handleInput(new MouseEvent('mouseup'), true); // Trigger a final reset
             });
-            touchControls.addEventListener('mouseleave', () => {
-                if (isMouseDown) {
-                    isMouseDown = false;
-                    Object.keys(keysPressed).forEach(key => keysPressed[key] = false);
-                    Object.values(buttons).forEach(btn => btn.classList.remove('active'));
-                }
-            });
-
 
             restartBtn.addEventListener('click', initializeGame);
             window.addEventListener('resize', initializeGame);
