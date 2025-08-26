@@ -380,13 +380,36 @@
             });
             document.addEventListener('keydown', e => { if (keysPressed.hasOwnProperty(e.key)) { e.preventDefault(); keysPressed[e.key] = true; } });
             document.addEventListener('keyup', e => { if (keysPressed.hasOwnProperty(e.key)) { e.preventDefault(); keysPressed[e.key] = false; } });
-            const touchMap = { 'up': 'ArrowUp', 'down': 'ArrowDown', 'left': 'ArrowLeft', 'right': 'ArrowRight' };
-            Object.entries(touchMap).forEach(([id, key]) => {
-                const btn = document.getElementById(id);
-                btn.addEventListener('touchstart', e => { e.preventDefault(); keysPressed[key] = true; });
-                btn.addEventListener('touchend', e => { e.preventDefault(); keysPressed[key] = false; });
-                btn.addEventListener('touchcancel', e => { e.preventDefault(); keysPressed[key] = false; });
-            });
+            
+            // --- Multi-touch Controls ---
+            const touchControls = document.getElementById('touch-controls');
+            function handleTouch(event) {
+                event.preventDefault();
+                startAudioContext();
+
+                keysPressed.ArrowUp = false;
+                keysPressed.ArrowDown = false;
+                keysPressed.ArrowLeft = false;
+                keysPressed.ArrowRight = false;
+
+                for (let i = 0; i < event.touches.length; i++) {
+                    const touch = event.touches[i];
+                    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (element) {
+                        switch (element.id) {
+                            case 'up': keysPressed.ArrowUp = true; break;
+                            case 'down': keysPressed.ArrowDown = true; break;
+                            case 'left': keysPressed.ArrowLeft = true; break;
+                            case 'right': keysPressed.ArrowRight = true; break;
+                        }
+                    }
+                }
+            }
+            touchControls.addEventListener('touchstart', handleTouch);
+            touchControls.addEventListener('touchmove', handleTouch);
+            touchControls.addEventListener('touchend', handleTouch);
+            touchControls.addEventListener('touchcancel', handleTouch);
+
             restartBtn.addEventListener('click', initializeGame);
             window.addEventListener('resize', initializeGame);
 
