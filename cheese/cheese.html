@@ -56,7 +56,7 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(3, 1fr);
-            gap: 0.5rem;
+            gap: 0; /* Removed gap for seamless sliding */
             width: 180px; /* Increased size */
             height: 180px; /* Increased size */
         }
@@ -391,62 +391,60 @@
                 right: document.getElementById('right'),
             };
 
-            // This function is now only responsible for adding a pressed state, not resetting.
-            function updateSingleButton(clientX, clientY) {
-                const element = document.elementFromPoint(clientX, clientY);
-                if (element && element.classList.contains('touch-btn')) {
-                    element.classList.add('active');
-                    switch (element.id) {
-                        case 'up': keysPressed.ArrowUp = true; break;
-                        case 'down': keysPressed.ArrowDown = true; break;
-                        case 'left': keysPressed.ArrowLeft = true; break;
-                        case 'right': keysPressed.ArrowRight = true; break;
-                    }
-                }
-            }
-
-            function handleInput(event, isMouseEvent = false) {
-                event.preventDefault();
-                startAudioContext();
-
-                // Reset keys and active states before processing new input
+            function updateActiveButtons(event) {
+                // Reset everything first
                 Object.keys(keysPressed).forEach(key => keysPressed[key] = false);
                 Object.values(buttons).forEach(btn => btn.classList.remove('active'));
 
-                if (isMouseEvent) {
-                    if (isMouseDown) {
-                         updateSingleButton(event.clientX, event.clientY);
-                    }
-                } else { // Touch Event
-                    if (event.touches.length > 0) {
-                        for (let i = 0; i < event.touches.length; i++) {
-                            const touch = event.touches[i];
-                            updateSingleButton(touch.clientX, touch.clientY);
+                // Get list of active points (touches or a single mouse point)
+                const points = event.touches ? Array.from(event.touches) : (isMouseDown ? [event] : []);
+
+                for (let i = 0; i < points.length; i++) {
+                    const point = points[i];
+                    const element = document.elementFromPoint(point.clientX, point.clientY);
+                    
+                    if (element && element.classList.contains('touch-btn')) {
+                        element.classList.add('active');
+                        switch (element.id) {
+                            case 'up': keysPressed.ArrowUp = true; break;
+                            case 'down': keysPressed.ArrowDown = true; break;
+                            case 'left': keysPressed.ArrowLeft = true; break;
+                            case 'right': keysPressed.ArrowRight = true; break;
                         }
                     }
                 }
             }
+
+            function handleInteractionStart(event) {
+                event.preventDefault();
+                startAudioContext();
+                isMouseDown = true; // for mouse
+                updateActiveButtons(event);
+            }
+
+            function handleInteractionMove(event) {
+                event.preventDefault();
+                if (event.touches || isMouseDown) {
+                    updateActiveButtons(event);
+                }
+            }
+
+            function handleInteractionEnd(event) {
+                event.preventDefault();
+                isMouseDown = false; // for mouse
+                updateActiveButtons(event);
+            }
             
             // Touch Listeners
-            touchControls.addEventListener('touchstart', e => handleInput(e));
-            touchControls.addEventListener('touchmove', e => handleInput(e));
-            touchControls.addEventListener('touchend', e => handleInput(e));
-            touchControls.addEventListener('touchcancel', e => handleInput(e));
+            touchControls.addEventListener('touchstart', handleInteractionStart);
+            touchControls.addEventListener('touchmove', handleInteractionMove);
+            touchControls.addEventListener('touchend', handleInteractionEnd);
+            touchControls.addEventListener('touchcancel', handleInteractionEnd);
 
             // Mouse Listeners
-            touchControls.addEventListener('mousedown', e => {
-                isMouseDown = true;
-                handleInput(e, true);
-            });
-            touchControls.addEventListener('mousemove', e => {
-                if (isMouseDown) {
-                    handleInput(e, true);
-                }
-            });
-            document.addEventListener('mouseup', () => {
-                isMouseDown = false;
-                handleInput(new MouseEvent('mouseup'), true); // Trigger a final reset
-            });
+            touchControls.addEventListener('mousedown', handleInteractionStart);
+            touchControls.addEventListener('mousemove', handleInteractionMove);
+            document.addEventListener('mouseup', handleInteractionEnd); // Listen on document for release outside button
 
             restartBtn.addEventListener('click', initializeGame);
             window.addEventListener('resize', initializeGame);
