@@ -70,6 +70,7 @@
             font-size: 2rem; /* Increased arrow size */
             cursor: pointer;
             user-select: none;
+            transition: background-color 0.1s ease-in-out;
         }
         .touch-btn.active {
             background-color: #374151; /* bg-gray-800 */
@@ -392,24 +393,36 @@
             };
 
             function updateActiveButtons(event) {
-                // Reset everything first
                 Object.keys(keysPressed).forEach(key => keysPressed[key] = false);
                 Object.values(buttons).forEach(btn => btn.classList.remove('active'));
 
-                // Get list of active points (touches or a single mouse point)
                 const points = event.touches ? Array.from(event.touches) : (isMouseDown ? [event] : []);
+                const controlRect = touchControls.getBoundingClientRect();
+                const centerX = controlRect.left + controlRect.width / 2;
+                const centerY = controlRect.top + controlRect.height / 2;
+                const deadZone = controlRect.width * 0.1; // 10% deadzone in the center
 
                 for (let i = 0; i < points.length; i++) {
                     const point = points[i];
-                    const element = document.elementFromPoint(point.clientX, point.clientY);
-                    
-                    if (element && element.classList.contains('touch-btn')) {
-                        element.classList.add('active');
-                        switch (element.id) {
-                            case 'up': keysPressed.ArrowUp = true; break;
-                            case 'down': keysPressed.ArrowDown = true; break;
-                            case 'left': keysPressed.ArrowLeft = true; break;
-                            case 'right': keysPressed.ArrowRight = true; break;
+                    const dx = point.clientX - centerX;
+                    const dy = point.clientY - centerY;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist > deadZone) {
+                        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                        if (angle > -135 && angle < -45) {
+                            keysPressed.ArrowUp = true;
+                            buttons.up.classList.add('active');
+                        } else if (angle >= -45 && angle <= 45) {
+                            keysPressed.ArrowRight = true;
+                            buttons.right.classList.add('active');
+                        } else if (angle > 45 && angle < 135) {
+                            keysPressed.ArrowDown = true;
+                            buttons.down.classList.add('active');
+                        } else {
+                            keysPressed.ArrowLeft = true;
+                            buttons.left.classList.add('active');
                         }
                     }
                 }
@@ -418,7 +431,7 @@
             function handleInteractionStart(event) {
                 event.preventDefault();
                 startAudioContext();
-                isMouseDown = true; // for mouse
+                isMouseDown = true;
                 updateActiveButtons(event);
             }
 
@@ -431,20 +444,18 @@
 
             function handleInteractionEnd(event) {
                 event.preventDefault();
-                isMouseDown = false; // for mouse
+                isMouseDown = false;
                 updateActiveButtons(event);
             }
             
-            // Touch Listeners
             touchControls.addEventListener('touchstart', handleInteractionStart);
             touchControls.addEventListener('touchmove', handleInteractionMove);
             touchControls.addEventListener('touchend', handleInteractionEnd);
             touchControls.addEventListener('touchcancel', handleInteractionEnd);
 
-            // Mouse Listeners
             touchControls.addEventListener('mousedown', handleInteractionStart);
             touchControls.addEventListener('mousemove', handleInteractionMove);
-            document.addEventListener('mouseup', handleInteractionEnd); // Listen on document for release outside button
+            document.addEventListener('mouseup', handleInteractionEnd);
 
             restartBtn.addEventListener('click', initializeGame);
             window.addEventListener('resize', initializeGame);
