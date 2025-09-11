@@ -87,6 +87,7 @@
     <div id="start-screen" class="fixed inset-0 bg-gray-800 flex flex-col items-center justify-center z-50 text-center p-4">
         <h1 class="text-6xl md:text-8xl font-bold text-yellow-400" style="filter: drop-shadow(4px 4px 3px rgba(0,0,0,0.4));">Cheese Pursuit</h1>
         <button id="start-btn" class="mt-10 bg-yellow-500 hover:bg-yellow-600 text-gray-800 font-bold py-3 px-8 rounded-lg text-2xl shadow-lg transform hover:scale-105 transition-transform duration-200">Start Game</button>
+        <div class="absolute bottom-2 right-2 text-xs text-gray-500">v1.1</div>
     </div>
 
     <!-- Main Game Content (initially hidden) -->
@@ -187,6 +188,7 @@
             const noise = new Tone.NoiseSynth().toDestination();
             function playMeow() { if (audioStarted) { synth.triggerAttackRelease("A4", "8n", Tone.now()); synth.triggerAttackRelease("C5", "8n", Tone.now() + 0.1); } }
             function playRoar() { if (audioStarted) synth.triggerAttackRelease("G2", "4n"); }
+            function playLionRoar() { if (audioStarted) synth.triggerAttackRelease("G1", "2n"); }
             function playSqueak() { if (audioStarted) noise.triggerAttackRelease("8n"); }
             function startAudioContext() { if (!audioStarted && Tone.context.state !== 'running') { Tone.start(); audioStarted = true; } }
             
@@ -238,7 +240,7 @@
                     if (dist > maxDistance) { maxDistance = dist; bestCorner = corner; }
                 });
 
-                const newCat = { x: bestCorner.x, y: bestCorner.y, el: catEl, isSuper: false, speed: catSpeed };
+                const newCat = { x: bestCorner.x, y: bestCorner.y, el: catEl, level: 1, speed: catSpeed };
                 cats.push(newCat);
                 updateCatPosition(newCat);
             }
@@ -297,7 +299,7 @@
                 for (const cat of cats) {
                     const catRect = cat.el.getBoundingClientRect();
                     const smallerCatRect = { left: catRect.left + padding, right: catRect.right - padding, top: catRect.top + padding, bottom: catRect.bottom - padding };
-                    if (isColliding(smallerMouseRect, smallerCatRect)) { endGame(cat.isSuper); return; }
+                    if (isColliding(smallerMouseRect, smallerCatRect)) { endGame(cat.level); return; }
                 }
             }
 
@@ -337,24 +339,41 @@
                 for (let i = 0; i < cats.length; i++) {
                     for (let j = i + 1; j < cats.length; j++) {
                         const c1 = cats[i], c2 = cats[j];
-                        if (c1.isSuper || c2.isSuper) continue;
+                        
+                        if (c1.level !== c2.level) continue; // Can only fuse with same level
+
                         if (isColliding(c1.el.getBoundingClientRect(), c2.el.getBoundingClientRect())) {
-                            playRoar();
-                            c1.isSuper = true; c1.speed = catSpeed * 2; c1.el.textContent = '🐯';
-                            c2.el.remove(); cats.splice(j, 1); j--;
+                            if (c1.level === 1) { // Cat + Cat -> Tiger
+                                playRoar();
+                                c1.level = 2;
+                                c1.speed = catSpeed * 2;
+                                c1.el.textContent = '🐯';
+                            } else if (c1.level === 2) { // Tiger + Tiger -> Lion
+                                playLionRoar();
+                                c1.level = 3;
+                                c1.speed = (catSpeed * 2) * 1.5; // 50% faster than tiger
+                                c1.el.textContent = '🦁';
+                            }
+                            
+                            c2.el.remove();
+                            cats.splice(j, 1);
+                            j--;
                         }
                     }
                 }
             }
 
-            function endGame(caughtBySuperCat) {
+            function endGame(predatorLevel) {
                 playSqueak();
                 gameOver = true;
                 cancelAnimationFrame(animationFrameId);
                 const messageTitle = document.getElementById('message-title');
                 const messageText = document.getElementById('message-text');
                 messageTitle.textContent = "Game Over!";
-                const predator = caughtBySuperCat ? "supercat" : "cat";
+                let predator;
+                if (predatorLevel === 3) predator = "lion";
+                else if (predatorLevel === 2) predator = "supercat";
+                else predator = "cat";
                 messageText.textContent = `The ${predator} caught you! Your final score is ${score}.`;
                 messageBox.classList.remove('hidden');
             }
@@ -400,7 +419,7 @@
                 const controlRect = touchControls.getBoundingClientRect();
                 const centerX = controlRect.left + controlRect.width / 2;
                 const centerY = controlRect.top + controlRect.height / 2;
-                const deadZone = controlRect.width * 0.1; // 10% deadzone in the center
+                const deadZone = controlRect.width * 0.1;
 
                 for (let i = 0; i < points.length; i++) {
                     const point = points[i];
@@ -460,7 +479,15 @@
             restartBtn.addEventListener('click', initializeGame);
             window.addEventListener('resize', initializeGame);
 
+            // --- Visibility Change Handler ---
+            document.addEventListener('visibilitychange', () => {
+                // If the page becomes visible again and the game was running, reset it.
+                if (document.visibilityState === 'visible' && !mainGame.classList.contains('hidden') && !gameOver) {
+                    initializeGame();
+                }
+            });
         });
     </script>
 </body>
 </html>
+
