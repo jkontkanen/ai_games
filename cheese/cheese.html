@@ -87,14 +87,17 @@
     <div id="start-screen" class="fixed inset-0 bg-gray-800 flex flex-col items-center justify-center z-50 text-center p-4">
         <h1 class="text-6xl md:text-8xl font-bold text-yellow-400" style="filter: drop-shadow(4px 4px 3px rgba(0,0,0,0.4));">Cheese Pursuit</h1>
         <button id="start-btn" class="mt-10 bg-yellow-500 hover:bg-yellow-600 text-gray-800 font-bold py-3 px-8 rounded-lg text-2xl shadow-lg transform hover:scale-105 transition-transform duration-200">Start Game</button>
-        <div class="absolute bottom-2 right-2 text-xs text-gray-500">v1.11</div>
+        <div class="absolute bottom-2 right-2 text-xs text-gray-500">v1.12</div>
     </div>
 
     <!-- Main Game Content (initially hidden) -->
     <div id="main-game" class="hidden w-full flex flex-col items-center">
         <div class="w-full max-w-2xl mx-auto text-center mb-4">
             <h1 class="text-4xl font-bold text-yellow-400">Cheese Pursuit</h1>
-            <div id="score" class="mt-4 text-2xl font-semibold bg-gray-700 rounded-lg px-4 py-2 inline-block">Score: 0</div>
+            <div class="mt-4 flex justify-center items-center space-x-4">
+                <div id="score" class="text-2xl font-semibold bg-gray-700 rounded-lg px-4 py-2">Score: 0</div>
+                <div id="high-score" class="text-2xl font-semibold bg-gray-700 rounded-lg px-4 py-2">High Score: 0</div>
+            </div>
         </div>
 
         <!-- Game Area (size is now controlled by JS) -->
@@ -159,11 +162,12 @@
             const mouse = document.getElementById('mouse');
             const cheese = document.getElementById('cheese');
             const scoreDisplay = document.getElementById('score');
+            const highScoreDisplay = document.getElementById('high-score');
             const messageBox = document.getElementById('message-box');
             const restartBtn = document.getElementById('restart-btn');
 
             // Game State
-            let score = 0, mouseX, mouseY, cats = [], gameOver = false, animationFrameId, audioStarted = false;
+            let score = 0, highScore = 0, mouseX, mouseY, cats = [], gameOver = false, animationFrameId, audioStarted = false;
             let lastTime = 0;
             let isMouseDown = false;
 
@@ -192,6 +196,23 @@
             function playLionRoar() { if (audioStarted) synth.triggerAttackRelease("G1", "2n"); }
             function playSqueak() { if (audioStarted) noise.triggerAttackRelease("8n"); }
             function startAudioContext() { if (!audioStarted && Tone.context.state !== 'running') { Tone.start(); audioStarted = true; } }
+            
+            // --- High Score Logic ---
+            function loadHighScore() {
+                const storedHighScore = localStorage.getItem('cheesePursuitHighScore');
+                highScore = storedHighScore ? parseInt(storedHighScore, 10) : 0;
+                highScoreDisplay.textContent = `High Score: ${highScore}`;
+            }
+
+            function saveHighScore() {
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('cheesePursuitHighScore', highScore);
+                    highScoreDisplay.textContent = `High Score: ${highScore}`;
+                    return true; // Indicates a new high score was set
+                }
+                return false;
+            }
             
             // --- Game Setup ---
             function initializeGame() {
@@ -236,7 +257,8 @@
                 mouseX = gameArea.offsetWidth / 2;
                 mouseY = gameArea.offsetHeight / 2;
                 updateMousePosition();
-
+                
+                loadHighScore();
                 addCat(); 
                 updateScore();
                 placeCheeseRandomly();
@@ -391,9 +413,19 @@
                 playSqueak();
                 gameOver = true;
                 cancelAnimationFrame(animationFrameId);
+                const isNewHighScore = saveHighScore();
+
                 const messageTitle = document.getElementById('message-title');
                 const messageText = document.getElementById('message-text');
-                messageTitle.textContent = "Game Over!";
+                
+                if (isNewHighScore) {
+                    messageTitle.textContent = "New High Score!";
+                    messageTitle.style.color = '#f59e0b'; // Tailwind amber-500
+                } else {
+                    messageTitle.textContent = "Game Over!";
+                    messageTitle.style.color = '#1f2937'; // Tailwind gray-800
+                }
+
                 let predator;
                 if (predatorLevel === 3) predator = "lion";
                 else if (predatorLevel === 2) predator = "supercat";
