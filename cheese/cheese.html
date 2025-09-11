@@ -87,7 +87,7 @@
     <div id="start-screen" class="fixed inset-0 bg-gray-800 flex flex-col items-center justify-center z-50 text-center p-4">
         <h1 class="text-6xl md:text-8xl font-bold text-yellow-400" style="filter: drop-shadow(4px 4px 3px rgba(0,0,0,0.4));">Cheese Pursuit</h1>
         <button id="start-btn" class="mt-10 bg-yellow-500 hover:bg-yellow-600 text-gray-800 font-bold py-3 px-8 rounded-lg text-2xl shadow-lg transform hover:scale-105 transition-transform duration-200">Start Game</button>
-        <div class="absolute bottom-2 right-2 text-xs text-gray-500">v1.1</div>
+        <div class="absolute bottom-2 right-2 text-xs text-gray-500">v1.11</div>
     </div>
 
     <!-- Main Game Content (initially hidden) -->
@@ -97,8 +97,8 @@
             <div id="score" class="mt-4 text-2xl font-semibold bg-gray-700 rounded-lg px-4 py-2 inline-block">Score: 0</div>
         </div>
 
-        <!-- Game Area -->
-        <div class="w-full max-w-2xl h-96 md:h-[500px] bg-gray-100 rounded-xl shadow-2xl overflow-hidden" id="game-container">
+        <!-- Game Area (size is now controlled by JS) -->
+        <div class="bg-gray-100 rounded-xl shadow-2xl overflow-hidden" id="game-container">
             <div id="game-area">
                 <div id="mouse" class="game-object">🐭</div>
                 <div id="cheese" class="game-object">🧀</div>
@@ -154,6 +154,7 @@
             const startScreen = document.getElementById('start-screen');
             const startBtn = document.getElementById('start-btn');
             const mainGame = document.getElementById('main-game');
+            const gameContainer = document.getElementById('game-container');
             const gameArea = document.getElementById('game-area');
             const mouse = document.getElementById('mouse');
             const cheese = document.getElementById('cheese');
@@ -194,6 +195,29 @@
             
             // --- Game Setup ---
             function initializeGame() {
+                // --- Dynamic Sizing Logic ---
+                const header = document.querySelector('#main-game > div:first-child');
+                const controls = document.getElementById('touch-controls');
+                const verticalPadding = 64; // Approx total vertical padding/margins
+                const controlsHeight = (window.innerWidth < 768) ? controls.offsetHeight + 24 : 0;
+
+                const availableWidth = document.body.clientWidth * 0.95; 
+                const availableHeight = window.innerHeight - header.offsetHeight - controlsHeight - verticalPadding;
+
+                const aspectRatio = 4 / 3;
+                
+                let newWidth = Math.min(availableWidth, 768); // Respect a max-width of 768px
+                let newHeight = newWidth / aspectRatio;
+
+                if (newHeight > availableHeight) {
+                    newHeight = availableHeight;
+                    newWidth = newHeight * aspectRatio;
+                }
+
+                gameContainer.style.width = `${newWidth}px`;
+                gameContainer.style.height = `${newHeight}px`;
+                // --- End Dynamic Sizing Logic ---
+
                 objectSize = Math.min(gameArea.offsetWidth, gameArea.offsetHeight) * 0.06;
                 document.querySelectorAll('.game-object').forEach(el => el.style.fontSize = `${objectSize}px`);
 
@@ -490,4 +514,5 @@
     </script>
 </body>
 </html>
+
 
