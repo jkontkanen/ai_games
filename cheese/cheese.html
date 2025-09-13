@@ -87,7 +87,7 @@
     <div id="start-screen" class="fixed inset-0 bg-gray-800 flex flex-col items-center justify-center z-50 text-center p-4">
         <h1 class="text-6xl md:text-8xl font-bold text-yellow-400" style="filter: drop-shadow(4px 4px 3px rgba(0,0,0,0.4));">Cheese Pursuit</h1>
         <button id="start-btn" class="mt-10 bg-yellow-500 hover:bg-yellow-600 text-gray-800 font-bold py-3 px-8 rounded-lg text-2xl shadow-lg transform hover:scale-105 transition-transform duration-200">Start Game</button>
-        <div class="absolute bottom-2 right-2 text-xs text-gray-500">v1.12</div>
+        <div class="absolute bottom-2 right-2 text-xs text-gray-500">v1.17</div>
     </div>
 
     <!-- Main Game Content (initially hidden) -->
@@ -127,6 +127,14 @@
         </div>
     </div>
 
+    <!-- Preload audio files -->
+    <audio id="lion-roar-audio" src="https://soqrdswwdcteergmzsoi.supabase.co/storage/v1/object/public/Cheese%20Pursuit%20Public%20Data/lion-roar-sound-effect-324751.mp3" preload="auto"></audio>
+    <audio id="tiger-roar-audio" src="https://soqrdswwdcteergmzsoi.supabase.co/storage/v1/object/public/Cheese%20Pursuit%20Public%20Data/tiger-roar-399277.mp3" preload="auto"></audio>
+    <audio id="cat-meow-audio" src="https://soqrdswwdcteergmzsoi.supabase.co/storage/v1/object/public/Cheese%20Pursuit%20Public%20Data/cat-meow-sound-383823.mp3" preload="auto"></audio>
+    <audio id="eating-sound-audio" src="https://soqrdswwdcteergmzsoi.supabase.co/storage/v1/object/public/Cheese%20Pursuit%20Public%20Data/eating-sound-effect-36186.mp3" preload="auto"></audio>
+    <audio id="squeak-sound-audio" src="https://soqrdswwdcteergmzsoi.supabase.co/storage/v1/object/public/Cheese%20Pursuit%20Public%20Data/tiny-squeak-toy-1-180436.mp3" preload="auto"></audio>
+
+
     <script>
         // --- PWA Setup ---
         const manifest = {
@@ -165,6 +173,11 @@
             const highScoreDisplay = document.getElementById('high-score');
             const messageBox = document.getElementById('message-box');
             const restartBtn = document.getElementById('restart-btn');
+            const lionRoarAudio = document.getElementById('lion-roar-audio');
+            const tigerRoarAudio = document.getElementById('tiger-roar-audio');
+            const catMeowAudio = document.getElementById('cat-meow-audio');
+            const eatingSoundAudio = document.getElementById('eating-sound-audio');
+            const squeakSoundAudio = document.getElementById('squeak-sound-audio');
 
             // Game State
             let score = 0, highScore = 0, mouseX, mouseY, cats = [], gameOver = false, animationFrameId, audioStarted = false;
@@ -189,13 +202,12 @@
             let walls = [];
             
             // --- Sound Effects ---
-            const synth = new Tone.Synth().toDestination();
-            const noise = new Tone.NoiseSynth().toDestination();
-            function playMeow() { if (audioStarted) { synth.triggerAttackRelease("A4", "8n", Tone.now()); synth.triggerAttackRelease("C5", "8n", Tone.now() + 0.1); } }
-            function playRoar() { if (audioStarted) synth.triggerAttackRelease("G2", "4n"); }
-            function playLionRoar() { if (audioStarted) synth.triggerAttackRelease("G1", "2n"); }
-            function playSqueak() { if (audioStarted) noise.triggerAttackRelease("8n"); }
-            function startAudioContext() { if (!audioStarted && Tone.context.state !== 'running') { Tone.start(); audioStarted = true; } }
+            function playMeow() { if (audioStarted && catMeowAudio) { catMeowAudio.currentTime = 0; catMeowAudio.play(); } }
+            function playRoar() { if (audioStarted && tigerRoarAudio) { tigerRoarAudio.currentTime = 0; tigerRoarAudio.play(); } }
+            function playLionRoar() { if (audioStarted && lionRoarAudio) { lionRoarAudio.currentTime = 0; lionRoarAudio.play(); } }
+            function playSqueak() { if (audioStarted && squeakSoundAudio) { squeakSoundAudio.currentTime = 0; squeakSoundAudio.play(); } }
+            function playEatingSound() { if (audioStarted && eatingSoundAudio) { eatingSoundAudio.currentTime = 0; eatingSoundAudio.play(); } }
+            function startAudioContext() { if (!audioStarted) { Tone.start(); audioStarted = true; } }
             
             // --- High Score Logic ---
             function loadHighScore() {
@@ -338,7 +350,14 @@
                 }
                 return false;
             }
-            function checkCheeseCollision() { if (isColliding(mouse.getBoundingClientRect(), cheese.getBoundingClientRect())) { score++; updateScore(); placeCheeseRandomly(); } }
+            function checkCheeseCollision() { 
+                if (isColliding(mouse.getBoundingClientRect(), cheese.getBoundingClientRect())) { 
+                    playEatingSound();
+                    score++; 
+                    updateScore(); 
+                    placeCheeseRandomly(); 
+                } 
+            }
             function checkCatCollision() {
                 const mouseRect = mouse.getBoundingClientRect(), padding = objectSize * 0.25;
                 const smallerMouseRect = { left: mouseRect.left + padding, right: mouseRect.right - padding, top: mouseRect.top + padding, bottom: mouseRect.bottom - padding };
@@ -546,5 +565,4 @@
     </script>
 </body>
 </html>
-
 
