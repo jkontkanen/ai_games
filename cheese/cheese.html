@@ -27,58 +27,61 @@
             overflow: hidden;
             border-radius: 0.75rem;
             cursor: pointer;
-            /* Added a subtle background pattern */
-            background-color: #e5e7eb; /* bg-gray-200 */
+            background-color: #e5e7eb;
             background-image: radial-gradient(#9ca3af 1px, transparent 1px);
             background-size: 20px 20px;
         }
         .game-object {
             position: absolute;
-            /* Font size is now set dynamically in JavaScript */
             user-select: none;
-            /* Added drop-shadow for a 3D effect that conforms to the emoji shape */
             filter: drop-shadow(4px 4px 3px rgba(0, 0, 0, 0.3));
-            /* Fix for Safari rendering bug with filter + transform */
             transform: translateZ(0);
         }
         .wall {
             position: absolute;
             border-radius: 0.25rem;
-            /* Added a brick-like texture */
-            background-color: #6b7280; /* bg-gray-500 */
+            background-color: #6b7280;
             background-image: linear-gradient(45deg, #4b5563 25%, transparent 25%, transparent 50%, #4b5563 50%, #4b5563 75%, transparent 75%, transparent);
             background-size: 15px 15px;
             border: 2px solid #374151;
-            /* Added a box-shadow for depth */
             box-shadow: 4px 4px 6px rgba(0, 0, 0, 0.2);
         }
         #touch-controls {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(3, 1fr);
-            gap: 0; /* Removed gap for seamless sliding */
-            width: 180px; /* Increased size */
-            height: 180px; /* Increased size */
+            gap: 0;
+            width: 180px;
+            height: 180px;
         }
         .touch-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            background-color: #4b5563; /* bg-gray-700 */
+            background-color: #4b5563;
             color: white;
-            border-radius: 9999px; /* rounded-full */
-            font-size: 2rem; /* Increased arrow size */
+            border-radius: 9999px;
+            font-size: 2rem;
             cursor: pointer;
             user-select: none;
             transition: background-color 0.1s ease-in-out;
         }
         .touch-btn.active {
-            background-color: #374151; /* bg-gray-800 */
+            background-color: #374151;
         }
         #up { grid-column: 2; grid-row: 1; }
         #left { grid-column: 1; grid-row: 2; }
         #right { grid-column: 3; grid-row: 2; }
         #down { grid-column: 2; grid-row: 3; }
+
+        .arcade-hint {
+            animation: blink 1.5s infinite;
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.2; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen p-4 pb-24 md:pb-4 text-white">
@@ -87,10 +90,11 @@
     <div id="start-screen" class="fixed inset-0 bg-gray-800 flex flex-col items-center justify-center z-50 text-center p-4">
         <h1 class="text-6xl md:text-8xl font-bold text-yellow-400" style="filter: drop-shadow(4px 4px 3px rgba(0,0,0,0.4));">Cheese Pursuit</h1>
         <button id="start-btn" class="mt-10 bg-yellow-500 hover:bg-yellow-600 text-gray-800 font-bold py-3 px-8 rounded-lg text-2xl shadow-lg transform hover:scale-105 transition-transform duration-200">Start Game</button>
-        <div class="absolute bottom-2 right-2 text-xs text-gray-500">v1.17</div>
+        <p class="mt-6 text-gray-400 arcade-hint text-xl uppercase tracking-widest hidden md:block">Press Start Button to Play</p>
+        <div class="absolute bottom-2 right-2 text-xs text-gray-500">v1.22</div>
     </div>
 
-    <!-- Main Game Content (initially hidden) -->
+    <!-- Main Game Content -->
     <div id="main-game" class="hidden w-full flex flex-col items-center">
         <div class="w-full max-w-2xl mx-auto text-center mb-4">
             <h1 class="text-4xl font-bold text-yellow-400">Cheese Pursuit</h1>
@@ -100,16 +104,15 @@
             </div>
         </div>
 
-        <!-- Game Area (size is now controlled by JS) -->
+        <!-- Game Area -->
         <div class="bg-gray-100 rounded-xl shadow-2xl overflow-hidden" id="game-container">
             <div id="game-area">
                 <div id="mouse" class="game-object">🐭</div>
                 <div id="cheese" class="game-object">🧀</div>
-                <!-- Cats will be generated here by JS -->
             </div>
         </div>
         
-        <!-- On-screen controls for touch devices -->
+        <!-- On-screen controls -->
         <div id="touch-controls" class="mt-6 md:hidden">
             <div id="up" class="touch-btn">▲</div>
             <div id="left" class="touch-btn">◀</div>
@@ -124,16 +127,12 @@
             <h2 id="message-title" class="text-3xl font-bold mb-4">Game Over!</h2>
             <p id="message-text">A predator caught you!</p>
             <button id="restart-btn" class="mt-6 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg">Play Again</button>
+            <p class="mt-4 text-gray-500 arcade-hint uppercase text-sm tracking-wider">Press Start to Restart</p>
         </div>
     </div>
 
-    <!-- Preload audio files -->
-    <audio id="lion-roar-audio" src="https://soqrdswwdcteergmzsoi.supabase.co/storage/v1/object/public/Cheese%20Pursuit%20Public%20Data/lion-roar-sound-effect-324751.mp3" preload="auto"></audio>
-    <audio id="tiger-roar-audio" src="https://soqrdswwdcteergmzsoi.supabase.co/storage/v1/object/public/Cheese%20Pursuit%20Public%20Data/tiger-roar-399277.mp3" preload="auto"></audio>
-    <audio id="cat-meow-audio" src="https://soqrdswwdcteergmzsoi.supabase.co/storage/v1/object/public/Cheese%20Pursuit%20Public%20Data/cat-meow-sound-383823.mp3" preload="auto"></audio>
-    <audio id="eating-sound-audio" src="https://soqrdswwdcteergmzsoi.supabase.co/storage/v1/object/public/Cheese%20Pursuit%20Public%20Data/eating-sound-effect-36186.mp3" preload="auto"></audio>
-    <audio id="squeak-sound-audio" src="https://soqrdswwdcteergmzsoi.supabase.co/storage/v1/object/public/Cheese%20Pursuit%20Public%20Data/tiny-squeak-toy-1-180436.mp3" preload="auto"></audio>
-
+    <!-- Local Audio BGM - Autoplay is OFF by design -->
+    <audio id="bg-music" src="cheese-pursuit-bgm.mp3" loop preload="auto"></audio>
 
     <script>
         // --- PWA Setup ---
@@ -148,19 +147,15 @@
         const manifestURL = URL.createObjectURL(manifestBlob);
         document.querySelector('#manifest').setAttribute('href', manifestURL);
 
-        if ('serviceWorker' in navigator) {
-            const swContent = `
-                const CACHE_NAME = 'cheese-pursuit-v1';
-                const assetsToCache = ['/', 'https://cdn.tailwindcss.com', 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap'];
-                self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(assetsToCache))));
-                self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
-            `;
-            const swBlob = new Blob([swContent], {type: 'application/javascript'});
-            const swURL = URL.createObjectURL(swBlob);
-            navigator.serviceWorker.register(swURL).catch(err => console.log('SW registration failed:', err));
-        }
-
         document.addEventListener('DOMContentLoaded', () => {
+            // URL Parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const hideTouch = urlParams.get('notouch') === '1';
+            const resetHigh = urlParams.get('resethigh') === '1';
+            const disableAudio = urlParams.get('noaudio') === '1';
+
+            if (resetHigh) localStorage.removeItem('cheesePursuitHighScore');
+
             // DOM Elements
             const startScreen = document.getElementById('start-screen');
             const startBtn = document.getElementById('start-btn');
@@ -173,18 +168,21 @@
             const highScoreDisplay = document.getElementById('high-score');
             const messageBox = document.getElementById('message-box');
             const restartBtn = document.getElementById('restart-btn');
-            const lionRoarAudio = document.getElementById('lion-roar-audio');
-            const tigerRoarAudio = document.getElementById('tiger-roar-audio');
-            const catMeowAudio = document.getElementById('cat-meow-audio');
-            const eatingSoundAudio = document.getElementById('eating-sound-audio');
-            const squeakSoundAudio = document.getElementById('squeak-sound-audio');
+            const touchControls = document.getElementById('touch-controls');
+            const bgMusic = document.getElementById('bg-music');
+
+            if (hideTouch) {
+                touchControls.style.display = 'none';
+                touchControls.classList.remove('md:hidden');
+            }
 
             // Game State
             let score = 0, highScore = 0, mouseX, mouseY, cats = [], gameOver = false, animationFrameId, audioStarted = false;
             let lastTime = 0;
             let isMouseDown = false;
+            let gameHasStartedOnce = false;
 
-            // Game Parameters (pixels per second)
+            // Game Parameters
             const mouseSpeed = 180; 
             const catSpeed = 45;
             let objectSize;
@@ -193,7 +191,6 @@
             // Input state tracker
             const keysPressed = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 
-            // Wall Definitions
             const wallDefinitions = [
                 { x: 20, y: 0, width: 5, height: 40 }, { x: 20, y: 60, width: 5, height: 40 },
                 { x: 75, y: 0, width: 5, height: 40 }, { x: 75, y: 60, width: 5, height: 40 },
@@ -201,13 +198,25 @@
             ];
             let walls = [];
             
-            // --- Sound Effects ---
-            function playMeow() { if (audioStarted && catMeowAudio) { catMeowAudio.currentTime = 0; catMeowAudio.play(); } }
-            function playRoar() { if (audioStarted && tigerRoarAudio) { tigerRoarAudio.currentTime = 0; tigerRoarAudio.play(); } }
-            function playLionRoar() { if (audioStarted && lionRoarAudio) { lionRoarAudio.currentTime = 0; lionRoarAudio.play(); } }
-            function playSqueak() { if (audioStarted && squeakSoundAudio) { squeakSoundAudio.currentTime = 0; squeakSoundAudio.play(); } }
-            function playEatingSound() { if (audioStarted && eatingSoundAudio) { eatingSoundAudio.currentTime = 0; eatingSoundAudio.play(); } }
-            function startAudioContext() { if (!audioStarted) { Tone.start(); audioStarted = true; } }
+            // --- Audio Control ---
+            function startAudioContext() { 
+                if (disableAudio) return;
+                if (!audioStarted) { 
+                    Tone.start(); 
+                    audioStarted = true; 
+                } 
+            }
+
+            function playBGM() {
+                if (!disableAudio && bgMusic) {
+                    bgMusic.currentTime = 0; // Restart track for new session
+                    bgMusic.play().catch(e => console.log("BGM Play blocked:", e));
+                }
+            }
+
+            function stopBGM() {
+                if (bgMusic) bgMusic.pause();
+            }
             
             // --- High Score Logic ---
             function loadHighScore() {
@@ -221,51 +230,50 @@
                     highScore = score;
                     localStorage.setItem('cheesePursuitHighScore', highScore);
                     highScoreDisplay.textContent = `High Score: ${highScore}`;
-                    return true; // Indicates a new high score was set
+                    return true;
                 }
                 return false;
             }
             
             // --- Game Setup ---
-            function initializeGame() {
-                // --- Dynamic Sizing Logic ---
-                const header = document.querySelector('#main-game > div:first-child');
-                const controls = document.getElementById('touch-controls');
-                const verticalPadding = 64; // Approx total vertical padding/margins
-                const controlsHeight = (window.innerWidth < 768) ? controls.offsetHeight + 24 : 0;
+            function triggerStartGame() {
+                startScreen.classList.add('hidden');
+                mainGame.classList.remove('hidden');
+                startAudioContext();
+                gameHasStartedOnce = true;
+                initializeGame();
+            }
 
+            function initializeGame() {
+                // Dynamic Sizing
+                const header = document.querySelector('#main-game > div:first-child');
+                const verticalPadding = 64; 
+                const isControlsVisible = window.getComputedStyle(touchControls).display !== 'none';
+                const controlsHeight = isControlsVisible ? touchControls.offsetHeight + 24 : 0;
                 const availableWidth = document.body.clientWidth * 0.95; 
                 const availableHeight = window.innerHeight - header.offsetHeight - controlsHeight - verticalPadding;
-
                 const aspectRatio = 4 / 3;
-                
-                let newWidth = Math.min(availableWidth, 768); // Respect a max-width of 768px
+                let newWidth = Math.min(availableWidth, 768); 
                 let newHeight = newWidth / aspectRatio;
-
                 if (newHeight > availableHeight) {
                     newHeight = availableHeight;
                     newWidth = newHeight * aspectRatio;
                 }
-
                 gameContainer.style.width = `${newWidth}px`;
                 gameContainer.style.height = `${newHeight}px`;
-                // --- End Dynamic Sizing Logic ---
 
                 objectSize = Math.min(gameArea.offsetWidth, gameArea.offsetHeight) * 0.06;
                 document.querySelectorAll('.game-object').forEach(el => el.style.fontSize = `${objectSize}px`);
 
                 gameOver = false;
                 score = 0;
-                lastTime = 0; // Reset time for delta time calculation
-                
+                lastTime = performance.now(); 
                 messageBox.classList.add('hidden');
-                
                 gameArea.querySelectorAll('.cat, .wall').forEach(el => el.remove());
                 cats = [];
                 walls = [];
 
                 createWalls();
-                
                 mouseX = gameArea.offsetWidth / 2;
                 mouseY = gameArea.offsetHeight / 2;
                 updateMousePosition();
@@ -275,13 +283,13 @@
                 updateScore();
                 placeCheeseRandomly();
                 
+                playBGM(); // Only starts when gameplay begins
+
                 if (animationFrameId) cancelAnimationFrame(animationFrameId);
                 animationFrameId = requestAnimationFrame(gameLoop);
             }
 
-            // --- Cat Management ---
             function addCat() {
-                playMeow();
                 const catEl = document.createElement('div');
                 catEl.classList.add('game-object', 'cat');
                 catEl.textContent = '🐱';
@@ -303,7 +311,6 @@
                 updateCatPosition(newCat);
             }
 
-            // --- Wall Creation ---
             function createWalls() {
                 const gameWidth = gameArea.offsetWidth, gameHeight = gameArea.offsetHeight;
                 wallDefinitions.forEach(def => {
@@ -318,7 +325,6 @@
                 });
             }
             
-            // --- Core Functions ---
             function updateMousePosition() { mouse.style.left = `${mouseX - objectSize / 2}px`; mouse.style.top = `${mouseY - objectSize / 2}px`; }
             function updateCatPosition(cat) { cat.el.style.left = `${cat.x - objectSize / 2}px`; cat.el.style.top = `${cat.y - objectSize / 2}px`; }
             function updateScore() {
@@ -339,7 +345,6 @@
                 cheese.style.top = `${randomY - objectSize / 2}px`;
             }
             
-            // --- Collision Detection ---
             function isColliding(r1, r2) { return !(r2.left > r1.right || r2.right < r1.left || r2.top > r1.bottom || r2.bottom < r1.top); }
             function isCollidingWithWall(rect) {
                 const smallerRect = { left: rect.left + wallCollisionPadding, right: rect.right - wallCollisionPadding, top: rect.top + wallCollisionPadding, bottom: rect.bottom - wallCollisionPadding };
@@ -350,14 +355,15 @@
                 }
                 return false;
             }
+
             function checkCheeseCollision() { 
                 if (isColliding(mouse.getBoundingClientRect(), cheese.getBoundingClientRect())) { 
-                    playEatingSound();
                     score++; 
                     updateScore(); 
                     placeCheeseRandomly(); 
                 } 
             }
+
             function checkCatCollision() {
                 const mouseRect = mouse.getBoundingClientRect(), padding = objectSize * 0.25;
                 const smallerMouseRect = { left: mouseRect.left + padding, right: mouseRect.right - padding, top: mouseRect.top + padding, bottom: mouseRect.bottom - padding };
@@ -368,14 +374,44 @@
                 }
             }
 
-            // --- Game Logic ---
+            function pollGamepad() {
+                const gamepads = navigator.getGamepads();
+                if (!gamepads) return;
+                for (const gp of gamepads) {
+                    if (!gp) continue;
+
+                    // Support Restart/Start (Start button index 9 or A button index 0)
+                    const startButtonPressed = gp.buttons[9]?.pressed || gp.buttons[0]?.pressed;
+                    if (startButtonPressed) {
+                        if (startScreen.classList.contains('hidden') === false) {
+                            triggerStartGame();
+                        } else if (gameOver) {
+                            initializeGame();
+                        }
+                    }
+
+                    // Movement (Skip if not in active play)
+                    if (gameOver || startScreen.classList.contains('hidden') === false) continue;
+
+                    keysPressed.ArrowUp = keysPressed.ArrowUp || gp.buttons[12]?.pressed;
+                    keysPressed.ArrowDown = keysPressed.ArrowDown || gp.buttons[13]?.pressed;
+                    keysPressed.ArrowLeft = keysPressed.ArrowLeft || gp.buttons[14]?.pressed;
+                    keysPressed.ArrowRight = keysPressed.ArrowRight || gp.buttons[15]?.pressed;
+                    const threshold = 0.3;
+                    if (gp.axes[0] < -threshold) keysPressed.ArrowLeft = true;
+                    if (gp.axes[0] > threshold) keysPressed.ArrowRight = true;
+                    if (gp.axes[1] < -threshold) keysPressed.ArrowUp = true;
+                    if (gp.axes[1] > threshold) keysPressed.ArrowDown = true;
+                }
+            }
+
             function handlePlayerInput(deltaTime) {
                 if (gameOver) return;
+                pollGamepad();
                 let dx = 0, dy = 0;
                 if (keysPressed.ArrowUp) dy = -1; if (keysPressed.ArrowDown) dy = 1;
                 if (keysPressed.ArrowLeft) dx = -1; if (keysPressed.ArrowRight) dx = 1;
                 if (dx === 0 && dy === 0) return;
-
                 let nextX = mouseX + dx * mouseSpeed * deltaTime;
                 let nextY = mouseY + dy * mouseSpeed * deltaTime;
                 nextX = Math.max(objectSize / 2, Math.min(nextX, gameArea.offsetWidth - objectSize / 2));
@@ -404,22 +440,17 @@
                 for (let i = 0; i < cats.length; i++) {
                     for (let j = i + 1; j < cats.length; j++) {
                         const c1 = cats[i], c2 = cats[j];
-                        
-                        if (c1.level !== c2.level) continue; // Can only fuse with same level
-
+                        if (c1.level !== c2.level) continue; 
                         if (isColliding(c1.el.getBoundingClientRect(), c2.el.getBoundingClientRect())) {
-                            if (c1.level === 1) { // Cat + Cat -> Tiger
-                                playRoar();
+                            if (c1.level === 1) { 
                                 c1.level = 2;
                                 c1.speed = catSpeed * 2;
                                 c1.el.textContent = '🐯';
-                            } else if (c1.level === 2) { // Tiger + Tiger -> Lion
-                                playLionRoar();
+                            } else if (c1.level === 2) { 
                                 c1.level = 3;
-                                c1.speed = (catSpeed * 2) * 1.5; // 50% faster than tiger
+                                c1.speed = (catSpeed * 2) * 1.5; 
                                 c1.el.textContent = '🦁';
                             }
-                            
                             c2.el.remove();
                             cats.splice(j, 1);
                             j--;
@@ -429,140 +460,98 @@
             }
 
             function endGame(predatorLevel) {
-                playSqueak();
                 gameOver = true;
-                cancelAnimationFrame(animationFrameId);
+                stopBGM(); // Cut music at Game Over
                 const isNewHighScore = saveHighScore();
-
                 const messageTitle = document.getElementById('message-title');
                 const messageText = document.getElementById('message-text');
-                
                 if (isNewHighScore) {
                     messageTitle.textContent = "New High Score!";
-                    messageTitle.style.color = '#f59e0b'; // Tailwind amber-500
+                    messageTitle.style.color = '#f59e0b';
                 } else {
                     messageTitle.textContent = "Game Over!";
-                    messageTitle.style.color = '#1f2937'; // Tailwind gray-800
+                    messageTitle.style.color = '#1f2937';
                 }
-
-                let predator;
-                if (predatorLevel === 3) predator = "lion";
-                else if (predatorLevel === 2) predator = "supercat";
-                else predator = "cat";
+                let predator = predatorLevel === 3 ? "lion" : (predatorLevel === 2 ? "supercat" : "cat");
                 messageText.textContent = `The ${predator} caught you! Your final score is ${score}.`;
                 messageBox.classList.remove('hidden');
             }
 
             function gameLoop(currentTime) {
-                if (gameOver) return;
                 if (!lastTime) lastTime = currentTime;
-                const deltaTime = (currentTime - lastTime) / 1000; // Time in seconds
+                const deltaTime = (currentTime - lastTime) / 1000; 
                 lastTime = currentTime;
 
-                handlePlayerInput(deltaTime);
-                moveCats(deltaTime);
-                fuseCats();
-                checkCheeseCollision();
-                checkCatCollision();
+                // Always poll gamepad for Start/Restart buttons
+                pollGamepad();
+
+                if (!gameOver && !startScreen.classList.contains('hidden')) {
+                    // Just waiting for start...
+                } else if (!gameOver) {
+                    handlePlayerInput(deltaTime);
+                    moveCats(deltaTime);
+                    fuseCats();
+                    checkCheeseCollision();
+                    checkCatCollision();
+                }
+
                 animationFrameId = requestAnimationFrame(gameLoop);
             }
 
-            // --- Event Listeners ---
-            startBtn.addEventListener('click', () => {
-                startScreen.classList.add('hidden');
-                mainGame.classList.remove('hidden');
-                startAudioContext();
-                initializeGame();
-            });
-            document.addEventListener('keydown', e => { if (keysPressed.hasOwnProperty(e.key)) { e.preventDefault(); keysPressed[e.key] = true; } });
-            document.addEventListener('keyup', e => { if (keysPressed.hasOwnProperty(e.key)) { e.preventDefault(); keysPressed[e.key] = false; } });
-            
-            // --- Unified Touch and Mouse Controls ---
-            const touchControls = document.getElementById('touch-controls');
-            const buttons = {
-                up: document.getElementById('up'),
-                down: document.getElementById('down'),
-                left: document.getElementById('left'),
-                right: document.getElementById('right'),
-            };
+            // --- Interaction Logic ---
+            const buttons = { up: document.getElementById('up'), down: document.getElementById('down'), left: document.getElementById('left'), right: document.getElementById('right') };
 
             function updateActiveButtons(event) {
+                if (hideTouch) return;
                 Object.keys(keysPressed).forEach(key => keysPressed[key] = false);
                 Object.values(buttons).forEach(btn => btn.classList.remove('active'));
-
                 const points = event.touches ? Array.from(event.touches) : (isMouseDown ? [event] : []);
                 const controlRect = touchControls.getBoundingClientRect();
                 const centerX = controlRect.left + controlRect.width / 2;
                 const centerY = controlRect.top + controlRect.height / 2;
                 const deadZone = controlRect.width * 0.1;
-
                 for (let i = 0; i < points.length; i++) {
                     const point = points[i];
                     const dx = point.clientX - centerX;
                     const dy = point.clientY - centerY;
-                    const dist = Math.hypot(dx, dy);
-
-                    if (dist > deadZone) {
+                    if (Math.hypot(dx, dy) > deadZone) {
                         const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-
-                        if (angle > -135 && angle < -45) {
-                            keysPressed.ArrowUp = true;
-                            buttons.up.classList.add('active');
-                        } else if (angle >= -45 && angle <= 45) {
-                            keysPressed.ArrowRight = true;
-                            buttons.right.classList.add('active');
-                        } else if (angle > 45 && angle < 135) {
-                            keysPressed.ArrowDown = true;
-                            buttons.down.classList.add('active');
-                        } else {
-                            keysPressed.ArrowLeft = true;
-                            buttons.left.classList.add('active');
-                        }
+                        if (angle > -135 && angle < -45) { keysPressed.ArrowUp = true; buttons.up.classList.add('active'); }
+                        else if (angle >= -45 && angle <= 45) { keysPressed.ArrowRight = true; buttons.right.classList.add('active'); }
+                        else if (angle > 45 && angle < 135) { keysPressed.ArrowDown = true; buttons.down.classList.add('active'); }
+                        else { keysPressed.ArrowLeft = true; buttons.left.classList.add('active'); }
                     }
                 }
             }
 
-            function handleInteractionStart(event) {
-                event.preventDefault();
-                startAudioContext();
-                isMouseDown = true;
-                updateActiveButtons(event);
-            }
-
-            function handleInteractionMove(event) {
-                event.preventDefault();
-                if (event.touches || isMouseDown) {
-                    updateActiveButtons(event);
-                }
-            }
-
-            function handleInteractionEnd(event) {
-                event.preventDefault();
-                isMouseDown = false;
-                updateActiveButtons(event);
-            }
+            startBtn.addEventListener('click', triggerStartGame);
+            document.addEventListener('keydown', e => { if (keysPressed.hasOwnProperty(e.key)) { e.preventDefault(); keysPressed[e.key] = true; } });
+            document.addEventListener('keyup', e => { if (keysPressed.hasOwnProperty(e.key)) { e.preventDefault(); keysPressed[e.key] = false; } });
             
-            touchControls.addEventListener('touchstart', handleInteractionStart);
-            touchControls.addEventListener('touchmove', handleInteractionMove);
-            touchControls.addEventListener('touchend', handleInteractionEnd);
-            touchControls.addEventListener('touchcancel', handleInteractionEnd);
-
-            touchControls.addEventListener('mousedown', handleInteractionStart);
-            touchControls.addEventListener('mousemove', handleInteractionMove);
-            document.addEventListener('mouseup', handleInteractionEnd);
+            touchControls.addEventListener('touchstart', e => { e.preventDefault(); startAudioContext(); isMouseDown = true; updateActiveButtons(e); });
+            touchControls.addEventListener('touchmove', e => { e.preventDefault(); updateActiveButtons(e); });
+            touchControls.addEventListener('touchend', e => { e.preventDefault(); isMouseDown = false; updateActiveButtons(e); });
+            touchControls.addEventListener('touchcancel', e => { e.preventDefault(); isMouseDown = false; updateActiveButtons(e); });
+            touchControls.addEventListener('mousedown', e => { isMouseDown = true; updateActiveButtons(e); });
+            touchControls.addEventListener('mousemove', e => { if (isMouseDown) updateActiveButtons(e); });
+            document.addEventListener('mouseup', () => { isMouseDown = false; if (!hideTouch) updateActiveButtons({touches:[]}); });
 
             restartBtn.addEventListener('click', initializeGame);
             window.addEventListener('resize', initializeGame);
 
-            // --- Visibility Change Handler ---
             document.addEventListener('visibilitychange', () => {
-                // If the page becomes visible again and the game was running, reset it.
-                if (document.visibilityState === 'visible' && !mainGame.classList.contains('hidden') && !gameOver) {
-                    initializeGame();
+                if (document.visibilityState === 'visible') {
+                    if (gameHasStartedOnce && !gameOver) {
+                        initializeGame(); 
+                    }
+                } else {
+                    stopBGM();
                 }
             });
+
+            // Kick off the loop immediately to listen for gamepad start
+            animationFrameId = requestAnimationFrame(gameLoop);
         });
     </script>
 </body>
 </html>
-
