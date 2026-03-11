@@ -91,7 +91,7 @@
         <h1 class="text-6xl md:text-8xl font-bold text-yellow-400" style="filter: drop-shadow(4px 4px 3px rgba(0,0,0,0.4));">Cheese Pursuit</h1>
         <button id="start-btn" class="mt-10 bg-yellow-500 hover:bg-yellow-600 text-gray-800 font-bold py-3 px-8 rounded-lg text-2xl shadow-lg transform hover:scale-105 transition-transform duration-200">Start Game</button>
         <p class="mt-6 text-gray-400 arcade-hint text-xl uppercase tracking-widest hidden md:block">Press Start Button to Play</p>
-        <div class="absolute bottom-2 right-2 text-xs text-gray-500">v1.22</div>
+        <div class="absolute bottom-2 right-2 text-xs text-gray-500">v1.23</div>
     </div>
 
     <!-- Main Game Content -->
@@ -188,7 +188,7 @@
             let objectSize;
             const wallCollisionPadding = 5;
 
-            // Input state tracker
+            // Input state tracker (Keyboard/Touch)
             const keysPressed = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 
             const wallDefinitions = [
@@ -209,7 +209,7 @@
 
             function playBGM() {
                 if (!disableAudio && bgMusic) {
-                    bgMusic.currentTime = 0; // Restart track for new session
+                    bgMusic.currentTime = 0; 
                     bgMusic.play().catch(e => console.log("BGM Play blocked:", e));
                 }
             }
@@ -283,7 +283,7 @@
                 updateScore();
                 placeCheeseRandomly();
                 
-                playBGM(); // Only starts when gameplay begins
+                playBGM();
 
                 if (animationFrameId) cancelAnimationFrame(animationFrameId);
                 animationFrameId = requestAnimationFrame(gameLoop);
@@ -374,50 +374,81 @@
                 }
             }
 
-            function pollGamepad() {
-                const gamepads = navigator.getGamepads();
-                if (!gamepads) return;
-                for (const gp of gamepads) {
-                    if (!gp) continue;
-
-                    // Support Restart/Start (Start button index 9 or A button index 0)
-                    const startButtonPressed = gp.buttons[9]?.pressed || gp.buttons[0]?.pressed;
-                    if (startButtonPressed) {
-                        if (startScreen.classList.contains('hidden') === false) {
-                            triggerStartGame();
-                        } else if (gameOver) {
-                            initializeGame();
+            // --- Updated Gamepad Polling (v1.23) ---
+            function handleInputAndGamepad(deltaTime) {
+                if (gameOver && startScreen.classList.contains('hidden')) {
+                   // Only check for Restart button if game over
+                   const gamepads = navigator.getGamepads();
+                   if (gamepads) {
+                       for (const gp of gamepads) {
+                           if (gp && (gp.buttons[9]?.pressed || gp.buttons[0]?.pressed)) {
+                               initializeGame();
+                               return;
+                           }
+                       }
+                   }
+                   return;
+                }
+                
+                if (!startScreen.classList.contains('hidden')) {
+                    // Check for Start button
+                    const gamepads = navigator.getGamepads();
+                    if (gamepads) {
+                        for (const gp of gamepads) {
+                            if (gp && (gp.buttons[9]?.pressed || gp.buttons[0]?.pressed)) {
+                                triggerStartGame();
+                                return;
+                            }
                         }
                     }
-
-                    // Movement (Skip if not in active play)
-                    if (gameOver || startScreen.classList.contains('hidden') === false) continue;
-
-                    keysPressed.ArrowUp = keysPressed.ArrowUp || gp.buttons[12]?.pressed;
-                    keysPressed.ArrowDown = keysPressed.ArrowDown || gp.buttons[13]?.pressed;
-                    keysPressed.ArrowLeft = keysPressed.ArrowLeft || gp.buttons[14]?.pressed;
-                    keysPressed.ArrowRight = keysPressed.ArrowRight || gp.buttons[15]?.pressed;
-                    const threshold = 0.3;
-                    if (gp.axes[0] < -threshold) keysPressed.ArrowLeft = true;
-                    if (gp.axes[0] > threshold) keysPressed.ArrowRight = true;
-                    if (gp.axes[1] < -threshold) keysPressed.ArrowUp = true;
-                    if (gp.axes[1] > threshold) keysPressed.ArrowDown = true;
+                    return;
                 }
-            }
 
-            function handlePlayerInput(deltaTime) {
-                if (gameOver) return;
-                pollGamepad();
+                // Normal Gameplay Input
                 let dx = 0, dy = 0;
-                if (keysPressed.ArrowUp) dy = -1; if (keysPressed.ArrowDown) dy = 1;
-                if (keysPressed.ArrowLeft) dx = -1; if (keysPressed.ArrowRight) dx = 1;
+
+                // 1. Check Gamepad Axes/Buttons (No state latching)
+                const gamepads = navigator.getGamepads();
+                if (gamepads) {
+                    for (const gp of gamepads) {
+                        if (!gp) continue;
+                        const threshold = 0.3;
+                        // D-Pad or Left Stick
+                        if (gp.buttons[12]?.pressed || gp.axes[1] < -threshold) dy = -1;
+                        if (gp.buttons[13]?.pressed || gp.axes[1] > threshold) dy = 1;
+                        if (gp.buttons[14]?.pressed || gp.axes[0] < -threshold) dx = -1;
+                        if (gp.buttons[15]?.pressed || gp.axes[0] > threshold) dx = 1;
+                    }
+                }
+
+                // 2. Merge with Keyboard/Touch (keysPressed stores state)
+                if (keysPressed.ArrowUp) dy = -1; 
+                if (keysPressed.ArrowDown) dy = 1;
+                if (keysPressed.ArrowLeft) dx = -1; 
+                if (keysPressed.ArrowRight) dx = 1;
+
                 if (dx === 0 && dy === 0) return;
+
                 let nextX = mouseX + dx * mouseSpeed * deltaTime;
                 let nextY = mouseY + dy * mouseSpeed * deltaTime;
                 nextX = Math.max(objectSize / 2, Math.min(nextX, gameArea.offsetWidth - objectSize / 2));
                 nextY = Math.max(objectSize / 2, Math.min(nextY, gameArea.offsetHeight - objectSize / 2));
                 const nextRect = { left: nextX - objectSize / 2, top: nextY - objectSize / 2, right: nextX + objectSize / 2, bottom: nextY + objectSize / 2 };
-                if (!isCollidingWithWall(nextRect)) { mouseX = nextX; mouseY = nextY; }
+                
+                if (!isCollidingWithWall(nextRect)) { 
+                    mouseX = nextX; 
+                    mouseY = nextY; 
+                } else {
+                    // Slide along wall if moving diagonally
+                    if (dx !== 0 && dy !== 0) {
+                        const rectX = { left: nextX - objectSize / 2, top: mouseY - objectSize / 2, right: nextX + objectSize / 2, bottom: mouseY + objectSize / 2 };
+                        if (!isCollidingWithWall(rectX)) { mouseX = nextX; }
+                        else {
+                            const rectY = { left: mouseX - objectSize / 2, top: nextY - objectSize / 2, right: mouseX + objectSize / 2, bottom: nextY + objectSize / 2 };
+                            if (!isCollidingWithWall(rectY)) { mouseY = nextY; }
+                        }
+                    }
+                }
                 updateMousePosition();
             }
 
@@ -461,7 +492,7 @@
 
             function endGame(predatorLevel) {
                 gameOver = true;
-                stopBGM(); // Cut music at Game Over
+                stopBGM(); 
                 const isNewHighScore = saveHighScore();
                 const messageTitle = document.getElementById('message-title');
                 const messageText = document.getElementById('message-text');
@@ -482,13 +513,9 @@
                 const deltaTime = (currentTime - lastTime) / 1000; 
                 lastTime = currentTime;
 
-                // Always poll gamepad for Start/Restart buttons
-                pollGamepad();
+                handleInputAndGamepad(deltaTime);
 
-                if (!gameOver && !startScreen.classList.contains('hidden')) {
-                    // Just waiting for start...
-                } else if (!gameOver) {
-                    handlePlayerInput(deltaTime);
+                if (!gameOver && startScreen.classList.contains('hidden')) {
                     moveCats(deltaTime);
                     fuseCats();
                     checkCheeseCollision();
@@ -549,7 +576,6 @@
                 }
             });
 
-            // Kick off the loop immediately to listen for gamepad start
             animationFrameId = requestAnimationFrame(gameLoop);
         });
     </script>
